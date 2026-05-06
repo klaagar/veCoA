@@ -3,74 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VECO - ส่งข้อมูลเข้ารับ</title>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400&display=swap" rel="stylesheet">
+    <title>VECO - Order System</title>
+    <!-- 1. ดึง SDK ของ LINE LIFF -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: 'Kanit', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: white; width: 90%; max-width: 400px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        h2 { color: #2ecc71; margin-bottom: 25px; }
-        .input-group { text-align: left; margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
-        input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; font-size: 16px; transition: 0.3s; }
-        input:focus { border-color: #2ecc71; outline: none; }
-        button { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #27ae60; }
-        button:disabled { background: #ccc; }
+        body { font-family: 'Kanit', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        h2 { color: #2ecc71; margin-bottom: 20px; }
+        label { display: block; text-align: left; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; background-color: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; transition: 0.3s; }
+        button:hover { background-color: #27ae60; }
+        #status { margin-top: 15px; font-size: 14px; color: #888; }
+        .readonly-bg { background-color: #e9ecef; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>VECO - ขายสินค้า</h2>
-    <div class="input-group">
-        <label>ชื่อของคุณ</label>
-        <input type="text" id="name" placeholder="ระบุชื่อเพื่อติดต่อ">
-    </div>
-    <div class="input-group">
-        <label>ที่อยู่เข้ารับ (พิกัด)</label>
-        <input type="text" id="locate" placeholder="พิมพ์ที่อยู่ หรือ แปะพิกัด Google Maps">
-    </div>
-    <button id="sendBtn" onclick="sendData()">ส่งข้อมูลให้เรา</button>
+<div class="card">
+    <h2>VECO - ส่งข้อมูล</h2>
+    
+    <label>ชื่อผู้ใช้งาน (LINE)</label>
+    <input type="text" id="name" class="readonly-bg" readonly placeholder="กำลังโหลดชื่อจาก LINE...">
+
+    <label>พิกัด / ที่อยู่สำหรับการนัดหมาย</label>
+    <input type="text" id="locate" placeholder="ระบุที่อยู่หรือจุดนัดพบ">
+
+    <button onclick="sendData()">ยืนยันส่งข้อมูล</button>
+    <p id="status">กำลังเชื่อมต่อระบบ...</p>
 </div>
 
 <script>
-    // ⚠️ อย่าลืมนำ Web App URL จาก Apps Script มาใส่ตรงนี้
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUsOBhMk9Abxc-sQ76fAgrqBUz-ru7hV_GXQiX1ms_LSa27GvzNfkgygGo43vcnYV9TQ/exec"; 
+    // --- ⚠️ ส่วนที่คุณกล้าต้องเติมเอง ⚠️ ---
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUsOBhMk9Abxc-sQ76fAgrqBUz-ru7hV_GXQiX1ms_LSa27GvzNfkgygGo43vcnYV9TQ/exec"; //
+    const MY_LIFF_ID = "https://liff.line.me/2009981698-AYdPnP2Q"; //
+    // ------------------------------------
 
+    // 2. เริ่มต้นระบบ LIFF เมื่อเปิดหน้าเว็บ
+    async function initializeLiff() {
+        try {
+            await liff.init({ liffId: MY_LIFF_ID });
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                document.getElementById('name').value = profile.displayName; // ดึงชื่อจาก LINE มาใส่
+                document.getElementById('status').innerText = "เชื่อมต่อ LINE เรียบร้อย";
+            } else {
+                liff.login(); // ถ้ายังไม่ล็อคอิน ให้เด้งหน้าล็อคอิน LINE
+            }
+        } catch (err) {
+            console.error('LIFF Error:', err);
+            document.getElementById('status').innerText = "กรุณาเปิดผ่านแอป LINE";
+        }
+    }
+    initializeLiff();
+
+    // 3. ฟังก์ชันส่งข้อมูลไปยัง Google Sheets (อ้างอิงจากโปรเจกต์ VECO)
     async function sendData() {
         const nameValue = document.getElementById('name').value;
         const locateValue = document.getElementById('locate').value;
-        const btn = document.getElementById('sendBtn');
 
-        if (!nameValue || !locateValue) {
-            alert("กรุณากรอกข้อมูลให้ครบครับ");
+        if (!locateValue) {
+            alert("กรุณากรอกพิกัดด้วยครับ");
             return;
         }
 
-        btn.disabled = true;
-        btn.innerText = "กำลังส่งข้อมูล...";
+        document.getElementById('status').innerText = "กำลังบันทึกข้อมูลลงระบบ...";
 
         try {
+            // ส่งข้อมูลไปที่ Apps Script ที่คุณกล้าเขียนไว้ในคลิป IMG_2956.mov
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
+                mode: 'no-cors', // สำคัญ: เพื่อไม่ให้ติดปัญหา CORS
+                cache: 'no-cache',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    action: 'submit_order',
-                    displayName: nameValue,
-                    address: locateValue
+                    name: nameValue,
+                    locate: locateValue,
+                    time: new Date().toLocaleString('th-TH')
                 })
             });
 
-            alert("ส่งข้อมูลสำเร็จ! ทีม VECO จะติดต่อกลับไปครับ");
-            document.getElementById('name').value = "";
+            alert("ส่งข้อมูลสำเร็จ! ทีมงาน VECO จะติดต่อกลับไปครับ");
             document.getElementById('locate').value = "";
+            document.getElementById('status').innerText = "บันทึกข้อมูลเรียบร้อย";
         } catch (error) {
-            alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "ส่งข้อมูลให้เรา";
+            console.error('Error:', error);
+            alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+            document.getElementById('status').innerText = "ส่งข้อมูลไม่สำเร็จ";
         }
     }
 </script>
 
-</body> 
+</body>
 </html>
